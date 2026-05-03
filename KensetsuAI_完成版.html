@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KensetsuAI — 建築会社向けAI事務アシスタント</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  // ========================================
+  // 🔧 ここにFirebaseの設定を貼り付けてください
+  // Firebase Console → プロジェクト設定 → アプリ → Firebase SDK snippet → 構成
+  // ========================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBbPVfVxIQ3ty5L_baD0h3KCEuRnZoBTkQ",
+    authDomain: "kensetsu-ai.firebaseapp.com",
+    projectId: "kensetsu-ai",
+    storageBucket: "kensetsu-ai.firebasestorage.app",
+    messagingSenderId: "1016299044137",
+    appId: "1:1016299044137:web:dd6d3e2c7b17933ea50b38"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // グローバルに公開
+  window._firebase = { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, doc, setDoc, getDoc, collection, addDoc, getDocs, query, where, orderBy, deleteDoc, serverTimestamp };
+
+  // 認証状態の監視
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // ユーザーデータ取得
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        window._currentUser = { uid: user.uid, email: user.email, ...userDoc.data() };
+      } else {
+        window._currentUser = { uid: user.uid, email: user.email, plan: 'trial' };
+      }
+      // ログイン済みの場合はアプリへ
+      if (window.location.hash !== '#landing' && !document.getElementById('v-app').classList.contains('active')) {
+        showView('v-app');
+        updateAppUI();
+      }
+    } else {
+      window._currentUser = null;
+    }
+  });
+</script>
+
+<style>
+:root{
+  --ink:#0f0f0d;--ink2:#3a3a36;--ink3:#888880;
+  --bg:#f5f4f0;--white:#fff;--line:#e2e0d8;--line2:#c8c6be;
+  --g1:#1a5c3a;--g2:#2d8a58;--g3:#e6f2ec;--g4:#c8e8d4;
+  --amber:#b06010;--amber-l:#fdf2e0;
+  --blue:#1a3f72;--blue-l:#e6eef8;
+  --red:#991e1e;--red-l:#faeaea;
+  --mono:'DM Mono',monospace;--serif:'Playfair Display',serif;--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+.view{display:none;min-height:100vh}.view.active{display:block}
+
+/* ===== LANDING ===== */
+.lp-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;background:rgba(245,244,240,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(26,92,58,.1)}
+.lp-logo{font-family:var(--serif);font-size:22px;color:var(--g1);font-weight:700}
+.lp-logo span{color:var(--ink3);font-weight:400;font-size:13px;margin-left:6px;font-family:'Noto Sans JP',sans-serif}
+.lp-nav-btns{display:flex;gap:10px}
+.btn-nav-ghost{font-size:13px;color:var(--ink2);background:none;border:1px solid var(--line2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;padding:7px 16px;border-radius:6px}
+.btn-nav-ghost:hover{background:var(--bg)}
+.btn-nav-cta{font-size:13px;font-weight:500;color:#fff;background:var(--g1);border:none;cursor:pointer;font-family:'Noto Sans JP',sans-serif;padding:8px 20px;border-radius:6px}
+.btn-nav-cta:hover{background:#134a2d}
+
+.hero{min-height:100vh;display:flex;align-items:center;padding:120px 40px 80px;max-width:1100px;margin:0 auto}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:var(--g3);border:1px solid var(--g4);color:var(--g1);font-size:11px;font-family:var(--mono);padding:5px 14px;border-radius:20px;margin-bottom:24px;letter-spacing:.05em}
+.hero h1{font-family:var(--serif);font-size:56px;line-height:1.1;margin-bottom:20px}
+.hero h1 em{font-style:normal;color:var(--g1)}
+.hero-sub{font-size:16px;color:var(--ink2);line-height:1.75;margin-bottom:36px;max-width:520px}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:var(--g1);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .2s}
+.btn-hero:hover{background:#134a2d;transform:translateY(-1px)}
+.btn-hero-g{background:transparent;color:var(--ink2);border:1px solid var(--line2)}
+.btn-hero-g:hover{background:var(--white)}
+.hero-note{font-size:12px;color:var(--ink3);margin-top:12px}
+
+.section{padding:80px 40px;max-width:1100px;margin:0 auto}
+.sec-tag{font-size:10px;font-family:var(--mono);color:var(--g1);letter-spacing:.12em;display:block;margin-bottom:10px}
+.sec-title{font-family:var(--serif);font-size:34px;line-height:1.2;margin-bottom:14px}
+.sec-sub{font-size:15px;color:var(--ink2);line-height:1.75;max-width:540px}
+
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.feat-card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px;transition:all .2s}
+.feat-card:hover{border-color:var(--g2);transform:translateY(-3px)}
+.feat-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.feat-card h3{font-size:14px;font-weight:500;margin-bottom:6px}
+.feat-card p{font-size:12px;color:var(--ink3);line-height:1.7}
+
+.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.price-card{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:28px;position:relative}
+.price-card.hot{border:2px solid var(--g1)}
+.price-card.hot::before{content:'おすすめ';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--g1);color:#fff;font-size:11px;padding:4px 14px;border-radius:20px;font-family:var(--mono);white-space:nowrap}
+.plan-name{font-size:12px;font-weight:500;font-family:var(--mono);color:var(--ink2);margin-bottom:10px;letter-spacing:.05em}
+.plan-price{font-family:var(--serif);font-size:44px;color:var(--ink);line-height:1;margin-bottom:4px}
+.plan-price span{font-size:16px;color:var(--ink2)}
+.plan-per{font-size:12px;color:var(--ink3);margin-bottom:18px}
+.plan-feats{display:flex;flex-direction:column;gap:9px;margin-bottom:22px}
+.pf{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)}
+.pf-chk{width:15px;height:15px;border-radius:50%;background:var(--g3);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--g1);font-weight:700;flex-shrink:0}
+.pf.no{color:var(--ink3)}.pf.no .pf-chk{background:var(--line);color:var(--ink3)}
+.btn-plan{width:100%;padding:11px;border-radius:7px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s}
+.btn-plan-g{background:var(--g1);color:#fff}.btn-plan-g:hover{background:#134a2d}
+.btn-plan-out{background:transparent;color:var(--ink2);border:1px solid var(--line2)}.btn-plan-out:hover{background:var(--bg)}
+
+.stats-bar{background:var(--ink);border-radius:18px;padding:52px;margin:0 40px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:32px}
+.stat-n{font-family:var(--serif);font-size:44px;color:#fff;margin-bottom:4px}
+.stat-l{font-size:12px;color:rgba(255,255,255,.45)}
+
+.cta-wrap{background:var(--g1);padding:72px 40px;text-align:center}
+.cta-wrap h2{font-family:var(--serif);font-size:38px;color:#fff;margin-bottom:14px}
+.cta-wrap p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:32px}
+.btn-cta-w{padding:13px 32px;background:#fff;color:var(--g1);border:none;border-radius:7px;font-size:14px;font-weight:500;font-family:'Noto Sans JP',sans-serif;cursor:pointer;transition:all .2s}
+.btn-cta-w:hover{background:var(--g3)}
+
+.lp-footer{background:var(--ink);padding:36px 40px;display:flex;align-items:center;justify-content:space-between}
+.lp-footer-logo{font-family:var(--serif);font-size:18px;color:#fff}
+.lp-footer-links{display:flex;gap:20px}
+.lp-footer-links a{font-size:12px;color:rgba(255,255,255,.35);text-decoration:none;cursor:pointer}
+.lp-footer-copy{font-size:11px;color:rgba(255,255,255,.2);font-family:var(--mono)}
+
+/* ===== AUTH ===== */
+.auth-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.auth-left{background:var(--g1);padding:56px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;position:relative}
+.auth-left::before{content:'';position:absolute;width:380px;height:380px;border-radius:50%;background:rgba(255,255,255,.04);top:-80px;right:-80px}
+.auth-brand{font-family:var(--serif);font-size:26px;color:#fff;font-weight:700;position:relative}
+.auth-pitch{position:relative}
+.auth-pitch h2{font-family:var(--serif);font-size:34px;color:#fff;line-height:1.25;margin-bottom:18px}
+.auth-pitch p{font-size:13px;color:rgba(255,255,255,.65);line-height:1.8}
+.auth-bens{display:flex;flex-direction:column;gap:12px;margin-top:28px}
+.ab-item{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.85)}
+.ab-dot{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0}
+.auth-right{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:36px}
+.auth-box{width:100%;max-width:400px}
+.auth-tabs{display:flex;background:var(--white);border:1px solid var(--line);border-radius:8px;padding:3px;margin-bottom:24px}
+.auth-tab{flex:1;padding:8px;border-radius:5px;text-align:center;font-size:13px;font-weight:500;color:var(--ink3);cursor:pointer;border:none;background:transparent;font-family:'Noto Sans JP',sans-serif;transition:all .15s}
+.auth-tab.on{background:var(--white);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.auth-title{font-size:20px;font-weight:500;margin-bottom:5px}
+.auth-sub{font-size:12px;color:var(--ink3);margin-bottom:22px}
+.af{margin-bottom:13px}
+.af label{font-size:11px;font-weight:500;color:var(--ink2);display:block;margin-bottom:5px}
+.af input,.af select{width:100%;border:1px solid var(--line);border-radius:7px;padding:10px 13px;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink);background:var(--white);outline:none;transition:border-color .15s}
+.af input:focus,.af select:focus{border-color:var(--g2)}
+.btn-auth{width:100%;padding:12px;background:var(--g1);color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:500;font-family:'Noto Sans JP',sans-serif;cursor:pointer;margin-top:4px;transition:all .15s}
+.btn-auth:hover{background:#134a2d}
+.btn-auth:disabled{background:var(--line2);color:var(--ink3);cursor:not-allowed}
+.auth-alt{text-align:center;font-size:12px;color:var(--ink3);margin-top:14px}
+.auth-alt a{color:var(--g1);cursor:pointer;text-decoration:underline}
+.auth-err{background:var(--red-l);border:1px solid #f0aaaa;border-radius:6px;padding:9px 13px;font-size:12px;color:var(--red);margin-bottom:12px;display:none}
+.auth-err.show{display:block}
+.auth-ok{background:var(--g3);border:1px solid var(--g4);border-radius:6px;padding:9px 13px;font-size:12px;color:var(--g1);margin-bottom:12px;display:none}
+.auth-ok.show{display:block}
+.plan-sel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:13px}
+.plan-opt{border:1px solid var(--line);border-radius:7px;padding:9px 7px;text-align:center;cursor:pointer;transition:all .15s}
+.plan-opt:hover{border-color:var(--g2)}.plan-opt.on{border-color:var(--g1);background:var(--g3)}
+.plan-opt .pn{font-size:12px;font-weight:500}.plan-opt .pp{font-size:10px;color:var(--ink3);margin-top:2px}
+.plan-opt.on .pn{color:var(--g1)}
+
+/* ===== APP ===== */
+.app-wrap{display:flex;min-height:100vh}
+.app-sb{width:230px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.app-sb-top{padding:16px 15px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.app-sb-brand{font-family:var(--serif);font-size:15px;color:#fff;margin-bottom:2px}
+.app-sb-user{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-sb-plan{display:inline-block;font-size:9px;font-family:var(--mono);background:var(--g1);color:#fff;padding:2px 8px;border-radius:4px;margin-top:4px;letter-spacing:.05em}
+.app-nav{padding:12px 10px;flex:1}
+.app-sec{font-size:9px;font-family:var(--mono);color:rgba(255,255,255,.25);letter-spacing:.12em;padding:0 8px;margin:14px 0 6px}
+.nb{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;cursor:pointer;color:rgba(255,255,255,.45);font-size:12px;width:100%;border:none;background:transparent;text-align:left;font-family:'Noto Sans JP',sans-serif;transition:all .15s;margin-bottom:1px}
+.nb:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.8)}
+.nb.on{color:#fff}.nb.on.cg{background:var(--g1)}.nb.on.ca{background:var(--amber)}.nb.on.cb{background:var(--blue)}.nb.on.ct{background:#0e5c5c}
+.nb svg{width:14px;height:14px;flex-shrink:0;opacity:.7}.nb.on svg{opacity:1}
+.app-sb-foot{padding:12px 14px;border-top:1px solid rgba(255,255,255,.08)}
+.btn-logout{font-size:11px;color:rgba(255,255,255,.4);cursor:pointer;background:none;border:none;font-family:'Noto Sans JP',sans-serif;display:flex;align-items:center;gap:6px;width:100%;padding:5px 0}
+.btn-logout:hover{color:rgba(255,255,255,.7)}
+.app-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.app-topbar{background:var(--white);border-bottom:1px solid var(--line);padding:13px 26px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.app-topbar h1{font-size:15px;font-weight:500}.app-topbar p{font-size:11px;color:var(--ink3);margin-top:2px}
+.app-badge{font-size:10px;font-family:var(--mono);background:var(--g3);color:var(--g1);padding:4px 12px;border-radius:20px}
+.app-content{flex:1;padding:22px 26px 48px;overflow-y:auto}
+.ap{display:none;animation:fi .2s ease}.ap.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cards */
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;margin-bottom:14px}
+.card-ttl{font-size:12px;font-weight:500;color:var(--ink2);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-ttl .bar{width:3px;height:13px;border-radius:2px;flex-shrink:0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.f{margin-bottom:12px}.f label{font-size:11px;font-weight:500;color:var(--ink2);display:block;margin-bottom:5px}
+.f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 12px;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink);background:var(--bg);outline:none;transition:border-color .15s}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--g2);background:var(--white)}
+.f textarea{min-height:100px;resize:vertical}
+.abar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:7px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover:not(:disabled){background:#134a2d}
+.btn-a{background:var(--amber);color:#fff}.btn-a:hover:not(:disabled){background:#8a4c0c}
+.btn-b{background:var(--blue);color:#fff}.btn-b:hover:not(:disabled){background:#132f58}
+.btn-ghost{background:transparent;border:1px solid var(--line2);color:var(--ink2)}.btn-ghost:hover{background:var(--bg)}
+.btn-danger{background:transparent;border:1px solid #f0aaaa;color:var(--red)}.btn-danger:hover{background:var(--red-l)}
+.btn-sm{padding:6px 13px;font-size:12px}
+.rbox{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:14px;font-size:13px;line-height:1.85;white-space:pre-wrap;min-height:60px}
+.rbox.loading{display:flex;align-items:center;gap:10px;color:var(--ink3);font-style:italic}
+.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--g1);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.copy-btn{font-size:11px;padding:5px 12px;border-radius:5px;border:1px solid var(--line);background:transparent;color:var(--ink3);cursor:pointer;font-family:var(--mono)}
+.copy-btn:hover{background:var(--bg)}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:13px}
+.tag-btn{padding:6px 13px;border:1px solid var(--line);border-radius:20px;font-size:12px;font-weight:500;color:var(--ink2);background:var(--bg);cursor:pointer;transition:all .15s;font-family:'Noto Sans JP',sans-serif}
+.tag-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.upzone{border:1.5px dashed var(--line2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
+.upzone:hover{border-color:var(--g2);background:var(--g3)}
+.upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upzone h3{font-size:13px;font-weight:500;margin-bottom:4px}.upzone p{font-size:11px;color:var(--ink3)}
+.prev-img{width:100%;max-height:220px;object-fit:contain;border-radius:7px;border:1px solid var(--line);margin-top:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:var(--bg);padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--ink3);border-bottom:1px solid var(--line)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}.tbl tr:hover td{background:var(--bg)}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono)}
+.bg-g{background:var(--g3);color:var(--g1)}.bg-a{background:var(--amber-l);color:var(--amber)}.bg-b{background:var(--blue-l);color:var(--blue)}.bg-r{background:var(--red-l);color:var(--red)}.bg-gr{background:var(--line);color:var(--ink3)}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:var(--bg);border-radius:8px;padding:13px}
+.kpi .kn{font-size:22px;font-weight:500;font-family:var(--mono)}.kpi .kl{font-size:11px;color:var(--ink3);margin-top:2px}.kpi .kd{font-size:11px;color:var(--g1);margin-top:2px;font-family:var(--mono)}
+.hgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.hc{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .15s}
+.hc:hover{border-color:var(--g2);transform:translateY(-2px)}
+.hc .hi{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.hc h3{font-size:13px;font-weight:500;margin-bottom:3px}.hc p{font-size:11px;color:var(--ink3);line-height:1.6}
+
+/* Stripe payment modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;display:none}
+.modal-overlay.show{display:flex}
+.modal{background:var(--white);border-radius:14px;padding:32px;width:100%;max-width:480px;position:relative}
+.modal h2{font-size:18px;font-weight:500;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--ink2);margin-bottom:20px}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink3)}
+#stripe-element-wrap{border:1px solid var(--line);border-radius:7px;padding:12px;background:var(--white);margin-bottom:16px;min-height:44px}
+.stripe-note{font-size:11px;color:var(--ink3);margin-top:8px;display:flex;align-items:center;gap:6px}
+
+/* Account settings */
+.plan-current{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--g3);border:1px solid var(--g4);border-radius:8px;margin-bottom:14px}
+.plan-current .pn{font-size:14px;font-weight:500;color:var(--g1)}
+.plan-current .pp{font-size:13px;color:var(--g1);font-family:var(--mono)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* Stripe badge */
+.stripe-powered{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink3);margin-top:6px}
+.stripe-logo{font-family:var(--mono);font-size:12px;font-weight:700;color:#635bff}
+
+@media(max-width:900px){
+  .auth-wrap{grid-template-columns:1fr}.auth-left{display:none}
+  .feat-grid,.price-grid{grid-template-columns:1fr}
+  .stats-bar{grid-template-columns:repeat(2,1fr);padding:36px;margin:0 16px 24px}
+  .app-sb{width:52px}.app-sb-top .app-sb-brand,.app-sb-top .app-sb-user,.app-sb-top .app-sb-plan,.app-sec,.nb span{display:none}
+  .nb{justify-content:center;padding:10px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}.hgrid{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== LANDING ===== -->
+<div class="view active" id="v-landing">
+  <nav class="lp-nav">
+    <div class="lp-logo">KensetsuAI <span>建築会社向けAI事務</span></div>
+    <div class="lp-nav-btns">
+      <button class="btn-nav-ghost" onclick="showView('v-auth')">ログイン</button>
+      <button class="btn-nav-cta" onclick="showView('v-auth');switchTab('signup')">14日間無料で試す</button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div>
+      <div class="hero-tag">🏗 建築・リフォーム・不動産業向け</div>
+      <h1>事務作業を<br><em>AIが</em>自動化する</h1>
+      <p class="hero-sub">手書き書類の写真を撮るだけ。議事録・見積もり・日報・在庫管理——建築会社の日常業務をAIがまるごと効率化します。</p>
+      <div class="hero-ctas">
+        <button class="btn-hero" onclick="showView('v-auth');switchTab('signup')">14日間無料で試す →</button>
+        <button class="btn-hero btn-hero-g" onclick="showView('v-auth')">ログイン</button>
+      </div>
+      <p class="hero-note">クレジットカード不要・いつでも解約可能</p>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div style="text-align:center"><div class="stat-n">78<span style="font-size:20px;color:rgba(255,255,255,.4)">%</span></div><div class="stat-l">事務工数削減</div></div>
+    <div style="text-align:center"><div class="stat-n">10<span style="font-size:20px;color:rgba(255,255,255,.4)">機能</span></div><div class="stat-l">1ツールに統合</div></div>
+    <div style="text-align:center"><div class="stat-n">3<span style="font-size:20px;color:rgba(255,255,255,.4)">分</span></div><div class="stat-l">書類1件の処理時間</div></div>
+    <div style="text-align:center"><div class="stat-n">50<span style="font-size:20px;color:rgba(255,255,255,.4)">万社</span></div><div class="stat-l">国内潜在顧客数</div></div>
+  </div>
+
+  <section class="section" id="features">
+    <span class="sec-tag">FEATURES</span>
+    <h2 class="sec-title">建築会社の事務業務をすべてカバー</h2>
+    <p class="sec-sub">スマホで撮って、AIに任せて、人間は確認するだけ。10の機能が1つに。</p>
+    <div class="feat-grid">
+      <div class="feat-card"><div class="feat-icon" style="background:#fdf2e0"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#b06010" stroke-width="1.5"><path d="M4 3h12v14l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5V3z"/><path d="M7 7h6M7 10h4"/></svg></div><h3>書類スキャン（OCR）</h3><p>領収書・納品書・請求書・日報を写真で撮るだけで自動データ化</p></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#e6f2ec"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1a5c3a" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h6M7 11h4"/></svg></div><h3>議事録AI</h3><p>打ち合わせメモを貼り付けるだけで決定事項・TODO・担当者を自動整理</p></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#e6eef8"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1a3f72" stroke-width="1.5"><path d="M5 3h8l4 4v10H5V3z"/></svg></div><h3>見積もりAI</h3><p>物件情報と施工内容から概算見積もりと提案書を自動生成</p></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#f0ede8"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5f5e5a" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="1.5"/><path d="M7 3v2M13 3v2M3 9h14"/></svg></div><h3>工程・スケジュール</h3><p>工事情報から週次工程表・施主への説明文を自動生成</p></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#e2f4f4"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#0e5c5c" stroke-width="1.5"><rect x="2" y="8" width="7" height="9" rx="1"/><rect x="11" y="5" width="7" height="12" rx="1"/></svg></div><h3>在庫管理AI</h3><p>在庫データを入力するだけで不足資材・発注リストを自動生成</p></div>
+      <div class="feat-card"><div class="feat-icon" style="background:#eeebfa"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#4a2d8a" stroke-width="1.5"><path d="M7 5l-4 4 2 2 6-7"/><rect x="12" y="6" width="5" height="2" rx="1"/></svg></div><h3>チェックリスト管理</h3><p>着工前・竣工検査などのチェックリストをAIが自動生成</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing" style="max-width:100%;padding:80px 40px;background:var(--white)">
+    <div style="max-width:1100px;margin:0 auto">
+      <span class="sec-tag">PRICING</span>
+      <h2 class="sec-title">シンプルな料金体系</h2>
+      <p class="sec-sub">すべてのプランに14日間の無料トライアル付き。いつでも解約可能。</p>
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="plan-name">STARTER</div>
+          <div class="plan-price">¥<span>19,800</span></div>
+          <div class="plan-per">/ 月（税込）</div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-chk">✓</div>書類スキャン月50件</div>
+            <div class="pf"><div class="pf-chk">✓</div>議事録・書類生成AI</div>
+            <div class="pf"><div class="pf-chk">✓</div>チェックリスト管理</div>
+            <div class="pf no"><div class="pf-chk">—</div>在庫管理AI</div>
+            <div class="pf no"><div class="pf-chk">—</div>複数ユーザー</div>
+          </div>
+          <button class="btn-plan btn-plan-out" onclick="showView('v-auth');switchTab('signup');selectPlan('starter')">無料で始める</button>
+        </div>
+        <div class="price-card hot">
+          <div class="plan-name">STANDARD</div>
+          <div class="plan-price">¥<span>39,800</span></div>
+          <div class="plan-per">/ 月（税込）</div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-chk">✓</div>書類スキャン月300件</div>
+            <div class="pf"><div class="pf-chk">✓</div>全機能使い放題</div>
+            <div class="pf"><div class="pf-chk">✓</div>在庫管理AI</div>
+            <div class="pf"><div class="pf-chk">✓</div>複数ユーザー5名まで</div>
+            <div class="pf"><div class="pf-chk">✓</div>メールサポート</div>
+          </div>
+          <button class="btn-plan btn-plan-g" onclick="showView('v-auth');switchTab('signup');selectPlan('standard')">無料で始める</button>
+        </div>
+        <div class="price-card">
+          <div class="plan-name">ENTERPRISE</div>
+          <div class="plan-price">¥<span>98,000</span><span style="font-size:14px">〜</span></div>
+          <div class="plan-per">/ 月（税込）</div>
+          <div class="plan-feats">
+            <div class="pf"><div class="pf-chk">✓</div>スキャン無制限</div>
+            <div class="pf"><div class="pf-chk">✓</div>全機能＋カスタム開発</div>
+            <div class="pf"><div class="pf-chk">✓</div>ユーザー数無制限</div>
+            <div class="pf"><div class="pf-chk">✓</div>専用サポート担当</div>
+            <div class="pf"><div class="pf-chk">✓</div>既存システム連携</div>
+          </div>
+          <button class="btn-plan btn-plan-out" onclick="showToast('お問い合わせありがとうございます。担当者よりご連絡いたします。')">お問い合わせ</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cta-wrap">
+    <h2>まず14日間、無料で試してください</h2>
+    <p>クレジットカード不要。設定5分で使い始められます。</p>
+    <button class="btn-cta-w" onclick="showView('v-auth');switchTab('signup')">無料トライアルを始める →</button>
+  </div>
+
+  <footer class="lp-footer">
+    <div class="lp-footer-logo">KensetsuAI</div>
+    <div class="lp-footer-links"><a>利用規約</a><a>プライバシーポリシー</a><a>特定商取引法</a><a>お問い合わせ</a></div>
+    <div class="lp-footer-copy">© 2025 KensetsuAI Inc.</div>
+  </footer>
+</div>
+
+<!-- ===== AUTH ===== -->
+<div class="view" id="v-auth">
+  <div class="auth-wrap">
+    <div class="auth-left">
+      <div class="auth-brand">KensetsuAI</div>
+      <div class="auth-pitch">
+        <h2>建築会社の事務を、AIが変える。</h2>
+        <p>手書き書類の自動データ化から議事録・見積もり・在庫管理まで。10の機能が1つのツールに。</p>
+        <div class="auth-bens">
+          <div class="ab-item"><div class="ab-dot">✓</div>書類スキャン — 写真を撮るだけ</div>
+          <div class="ab-item"><div class="ab-dot">✓</div>議事録AI — メモを貼るだけ</div>
+          <div class="ab-item"><div class="ab-dot">✓</div>14日間無料・いつでも解約可能</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.25);font-family:var(--mono)">© 2025 KensetsuAI Inc.</div>
+    </div>
+    <div class="auth-right">
+      <div class="auth-box">
+        <div style="margin-bottom:18px;cursor:pointer;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:4px" onclick="showView('v-landing')">← トップページへ</div>
+        <div class="auth-tabs">
+          <button class="auth-tab on" onclick="switchTab('login')">ログイン</button>
+          <button class="auth-tab" onclick="switchTab('signup')">新規登録</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="auth-login">
+          <div class="auth-title">おかえりなさい</div>
+          <div class="auth-sub">アカウントにログインしてください</div>
+          <div class="auth-err" id="login-err"></div>
+          <div class="af"><label>メールアドレス</label><input type="email" id="login-email" placeholder="example@company.jp"></div>
+          <div class="af"><label>パスワード</label><input type="password" id="login-pass" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()"></div>
+          <button class="btn-auth" id="login-btn" onclick="doLogin()">ログインする</button>
+          <div class="auth-alt" style="margin-top:10px">アカウントをお持ちでない方は <a onclick="switchTab('signup')">新規登録</a></div>
+        </div>
+
+        <!-- SIGNUP -->
+        <div id="auth-signup" style="display:none">
+          <div class="auth-title">14日間無料で始める</div>
+          <div class="auth-sub">クレジットカード不要・設定5分</div>
+          <div class="auth-err" id="signup-err"></div>
+          <div class="auth-ok" id="signup-ok"></div>
+          <div class="af"><label>会社名</label><input type="text" id="su-company" placeholder="株式会社〇〇建設"></div>
+          <div class="af"><label>お名前</label><input type="text" id="su-name" placeholder="山田 太郎"></div>
+          <div class="af"><label>メールアドレス</label><input type="email" id="su-email" placeholder="example@company.jp"></div>
+          <div class="af"><label>パスワード（8文字以上）</label><input type="password" id="su-pass" placeholder="パスワードを設定"></div>
+          <div class="af">
+            <label>ご希望のプラン</label>
+            <div class="plan-sel-grid" id="plan-sel-grid">
+              <div class="plan-opt" data-p="starter" onclick="selectPlan('starter')"><div class="pn">スターター</div><div class="pp">¥19,800/月</div></div>
+              <div class="plan-opt on" data-p="standard" onclick="selectPlan('standard')"><div class="pn">スタンダード</div><div class="pp">¥39,800/月</div></div>
+              <div class="plan-opt" data-p="enterprise" onclick="selectPlan('enterprise')"><div class="pn">エンタープライズ</div><div class="pp">¥98,000/月〜</div></div>
+            </div>
+          </div>
+          <button class="btn-auth" id="signup-btn" onclick="doSignup()">無料トライアルを開始する</button>
+          <div class="auth-alt">すでにアカウントをお持ちの方は <a onclick="switchTab('login')">ログイン</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div class="view" id="v-app">
+  <div class="app-wrap">
+    <nav class="app-sb">
+      <div class="app-sb-top">
+        <div class="app-sb-brand">KensetsuAI</div>
+        <div class="app-sb-user" id="sb-user">---</div>
+        <div class="app-sb-plan" id="sb-plan">TRIAL</div>
+      </div>
+      <div class="app-nav">
+        <div class="app-sec">メニュー</div>
+        <button class="nb cg on" onclick="nav('home',this,'ホーム','全機能へのショートカット')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5L8 2l6 4.5V14H2V6.5z"/></svg><span>ホーム</span></button>
+        <div class="app-sec">書類スキャン</div>
+        <button class="nb ca" onclick="nav('scan',this,'書類スキャン','領収書・納品書・請求書を自動データ化')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10v12l-2-1.5L9 14l-2-1.5L5 14l-2-1.5V2z"/></svg><span>領収書・納品書・請求書</span></button>
+        <button class="nb ca" onclick="nav('daily',this,'作業日報スキャン','手書き日報をデータ化')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h4"/></svg><span>現場作業日報</span></button>
+        <div class="app-sec">AI自動生成</div>
+        <button class="nb cg" onclick="nav('minutes',this,'議事録AI','打ち合わせメモ→議事録自動生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg><span>議事録 AI</span></button>
+        <button class="nb cg" onclick="nav('estimate',this,'見積もりAI','物件情報→概算見積もり生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h6l4 4v8H4V2z"/><path d="M10 2v4h4M6 9h4M6 12h2"/></svg><span>見積もり AI</span></button>
+        <button class="nb cg" onclick="nav('docs',this,'社内書類作成','報告書・通知文など自動生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h8l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M9 2v4h4"/></svg><span>社内書類作成</span></button>
+        <button class="nb cg" onclick="nav('schedule',this,'工程・スケジュール','工事情報→工程表・連絡文生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 2v2M11 2v2M2 7h12"/></svg><span>工程・スケジュール</span></button>
+        <div class="app-sec">管理ツール</div>
+        <button class="nb cb" onclick="nav('checklist',this,'チェックリスト管理','工事確認リストを自動生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4l-3 3 2 2 5-6"/><rect x="10" y="5" width="4" height="1.5" rx=".75"/><path d="M2 9l1.5 1.5L6 8"/></svg><span>チェックリスト管理</span></button>
+        <button class="nb ct" onclick="nav('inventory',this,'在庫管理AI','不足資材・発注リストを自動生成')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="8" width="5" height="6" rx="1"/><rect x="9" y="5" width="5" height="9" rx="1"/></svg><span>在庫管理 AI</span></button>
+        <div class="app-sec">アカウント</div>
+        <button class="nb" onclick="nav('account',this,'アカウント設定','プラン・支払い管理')"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg><span>アカウント設定</span></button>
+      </div>
+      <div class="app-sb-foot">
+        <button class="btn-logout" onclick="doLogout()"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3v10h3M10 5l3 3-3 3M13 8H7"/></svg><span>ログアウト</span></button>
+      </div>
+    </nav>
+
+    <div class="app-main">
+      <div class="app-topbar">
+        <div><h1 id="app-title">ホーム</h1><p id="app-sub">全機能へのショートカット</p></div>
+        <div class="app-badge">AI powered</div>
+      </div>
+      <div class="app-content">
+
+        <!-- HOME -->
+        <div class="ap on" id="ap-home">
+          <div class="hgrid">
+            <div class="hc" onclick="nav('scan',document.querySelectorAll('.nb.ca')[0])"><div class="hi" style="background:#fdf2e0"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#b06010" stroke-width="1.5"><path d="M3 2h10v12l-2-1.5L9 14l-2-1.5L5 14l-2-1.5V2z"/></svg></div><h3>書類スキャン</h3><p>写真を撮るだけで自動データ化</p></div>
+            <div class="hc" onclick="nav('minutes',document.querySelectorAll('.nb.cg')[1])"><div class="hi" style="background:#e6f2ec"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#1a5c3a" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/></svg></div><h3>議事録 AI</h3><p>メモ→議事録を自動生成</p></div>
+            <div class="hc" onclick="nav('estimate',document.querySelectorAll('.nb.cg')[2])"><div class="hi" style="background:#e6f2ec"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#1a5c3a" stroke-width="1.5"><path d="M4 2h6l4 4v8H4V2z"/></svg></div><h3>見積もり AI</h3><p>物件情報から概算見積もり</p></div>
+            <div class="hc" onclick="nav('docs',document.querySelectorAll('.nb.cg')[3])"><div class="hi" style="background:#e6f2ec"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#1a5c3a" stroke-width="1.5"><path d="M3 2h8l3 3v9H3V2z"/></svg></div><h3>社内書類作成</h3><p>報告書・通知文を自動生成</p></div>
+            <div class="hc" onclick="nav('checklist',document.querySelector('.nb.cb'))"><div class="hi" style="background:#e6eef8"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#1a3f72" stroke-width="1.5"><path d="M6 4l-3 3 2 2 5-6"/></svg></div><h3>チェックリスト</h3><p>工事確認リストを自動生成</p></div>
+            <div class="hc" onclick="nav('inventory',document.querySelector('.nb.ct'))"><div class="hi" style="background:#e2f4f4"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#0e5c5c" stroke-width="1.5"><rect x="2" y="8" width="5" height="6" rx="1"/><rect x="9" y="5" width="5" height="9" rx="1"/></svg></div><h3>在庫管理 AI</h3><p>発注リストを自動生成</p></div>
+          </div>
+          <div class="card" style="background:var(--g1);border-color:var(--g1)">
+            <p id="home-plan-note" style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.75">プラン情報を読み込み中...</p>
+          </div>
+        </div>
+
+        <!-- SCAN -->
+        <div class="ap" id="ap-scan">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>書類の写真をアップロード</div>
+            <div class="upzone" id="sc-dz"><input type="file" accept="image/*" capture="environment" id="sc-fi" onchange="scHandle(event)"><h3>写真を選択 / カメラで撮影</h3><p>領収書・納品書・請求書に対応。手書きもOK。</p></div>
+            <img id="sc-prev" class="prev-img" style="display:none">
+            <div id="sc-typewrap" style="display:none;margin-top:14px">
+              <div class="f"><label>書類の種類</label>
+                <div class="g3" style="gap:8px">
+                  <button class="btn btn-a btn-sm" id="sc-t-r" onclick="scSelType('receipt',this)" style="justify-content:center">領収書</button>
+                  <button class="btn btn-ghost btn-sm" id="sc-t-d" onclick="scSelType('delivery',this)" style="justify-content:center">納品書</button>
+                  <button class="btn btn-ghost btn-sm" id="sc-t-i" onclick="scSelType('invoice',this)" style="justify-content:center">請求書</button>
+                </div>
+              </div>
+              <div class="abar"><button class="btn btn-a" onclick="scRun()">AIで読み取る</button></div>
+            </div>
+          </div>
+          <div id="sc-loading" class="card" style="display:none;text-align:center;padding:32px"><div class="spin" style="width:30px;height:30px;border-width:3px;border-top-color:var(--amber);margin:0 auto 12px"></div><p style="font-size:13px;color:var(--ink3)" id="sc-lstep">AIが読み取り中...</p></div>
+          <div id="sc-review" class="card" style="display:none">
+            <div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>内容を確認・修正してください</div>
+            <div id="sc-form"></div>
+            <div class="abar"><button class="btn btn-g" onclick="scSave()">✓ 確認OK・保存する</button><button class="btn btn-ghost btn-sm" onclick="scReset()">破棄</button></div>
+          </div>
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>保存済み一覧</div><div id="sc-list"><p style="font-size:13px;color:var(--ink3);text-align:center;padding:20px 0">まだデータがありません</p></div><div class="abar"><button class="btn btn-ghost btn-sm" onclick="exportCSV()">CSVで書き出す</button></div></div>
+        </div>
+
+        <!-- DAILY -->
+        <div class="ap" id="ap-daily">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>作業日報の写真をアップロード</div>
+            <div class="upzone"><input type="file" accept="image/*" capture="environment" id="dl-fi" onchange="dlHandle(event)"><h3>作業日報の写真を選択</h3><p>手書きでも読み取れます</p></div>
+            <img id="dl-prev" class="prev-img" style="display:none">
+            <div id="dl-btn" style="display:none;margin-top:12px"><div class="abar"><button class="btn btn-a" onclick="dlRun()">AIで日報を読み取る</button></div></div>
+          </div>
+          <div id="dl-loading" class="card" style="display:none;text-align:center;padding:32px"><div class="spin" style="width:30px;height:30px;border-width:3px;border-top-color:var(--amber);margin:0 auto 12px"></div><p style="font-size:13px;color:var(--ink3)">手書き日報を読み取り中...</p></div>
+          <div id="dl-review" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>日報内容を確認・修正</div><div id="dl-form"></div><div class="abar"><button class="btn btn-g" onclick="dlSave()">✓ 保存する</button><button class="btn btn-ghost btn-sm" onclick="dlReset()">キャンセル</button></div></div>
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--amber)"></div>日報一覧</div><div id="dl-list"><p style="font-size:13px;color:var(--ink3);text-align:center;padding:20px 0">まだデータがありません</p></div><div class="abar"><button class="btn btn-ghost btn-sm" onclick="exportDlCSV()">CSVで書き出す</button></div></div>
+        </div>
+
+        <!-- MINUTES -->
+        <div class="ap" id="ap-minutes">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>打ち合わせ内容を入力</div>
+            <div class="f"><label>打ち合わせのメモ・録音テキストを貼り付けてください</label><textarea id="mn-in" placeholder="例：2025年5月3日 山田様邸打ち合わせ&#10;・キッチン位置を北側に変更→合意&#10;・工期 6月1日〜8月末予定&#10;・床材サンプルを次回持参（担当：佐藤）&#10;・次回 5月17日 午前10時"></textarea></div>
+            <div class="abar"><button class="btn btn-g" onclick="runMinutes()">議事録を自動生成</button></div>
+          </div>
+          <div id="mn-card" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>生成された議事録</div><div id="mn-result" class="rbox"></div><div class="abar"><button class="copy-btn" onclick="copyEl('mn-result')">コピー</button><button class="btn btn-ghost btn-sm" onclick="saveToFirestore('minutes',document.getElementById('mn-result').textContent)">Firestoreに保存</button></div></div>
+        </div>
+
+        <!-- ESTIMATE -->
+        <div class="ap" id="ap-estimate">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>物件・工事情報</div>
+            <div class="g2">
+              <div class="f"><label>物件種別</label><select id="es-type"><option>マンション（区分所有）</option><option>戸建て（木造）</option><option>戸建て（RC造）</option><option>店舗・オフィス</option></select></div>
+              <div class="f"><label>築年数</label><select id="es-age"><option>5年未満</option><option>5〜15年</option><option>15〜30年</option><option>30年以上</option></select></div>
+              <div class="f"><label>専有面積（㎡）</label><input type="number" id="es-area" value="75"></div>
+              <div class="f"><label>ご予算目安</label><select id="es-budget"><option>〜200万円</option><option>200〜500万円</option><option>500〜1000万円</option><option>1000万円以上</option></select></div>
+            </div>
+            <div class="f"><label>施工したい内容</label><textarea id="es-work" placeholder="例：キッチンを対面式に変更、床材を無垢材に張り替え、浴室をユニットバスに交換"></textarea></div>
+            <div class="abar"><button class="btn btn-g" onclick="runEstimate()">AIで見積もりを生成</button></div>
+          </div>
+          <div id="es-card" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>概算見積もり</div><div id="es-result"></div></div>
+        </div>
+
+        <!-- DOCS -->
+        <div class="ap" id="ap-docs">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>書類の種類</div>
+            <div class="tags" id="doc-types">
+              <button class="tag-btn on" data-v="工事報告書" onclick="selTag(this,'doc-types')">工事報告書</button>
+              <button class="tag-btn" data-v="業務マニュアル" onclick="selTag(this,'doc-types')">業務マニュアル</button>
+              <button class="tag-btn" data-v="社内通知文" onclick="selTag(this,'doc-types')">社内通知文</button>
+              <button class="tag-btn" data-v="お客様への連絡文" onclick="selTag(this,'doc-types')">お客様連絡文</button>
+              <button class="tag-btn" data-v="見積もり提案書" onclick="selTag(this,'doc-types')">見積もり提案書</button>
+              <button class="tag-btn" data-v="クレーム対応文" onclick="selTag(this,'doc-types')">クレーム対応文</button>
+              <button class="tag-btn" data-v="工事完了報告書" onclick="selTag(this,'doc-types')">工事完了報告書</button>
+              <button class="tag-btn" data-v="安全管理規定" onclick="selTag(this,'doc-types')">安全管理規定</button>
+            </div>
+          </div>
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>内容の入力</div>
+            <div class="f"><label>書類に含める情報・メモ</label><textarea id="dc-in" placeholder="例：工事名、場所、工期、担当者、完了内容、特記事項など"></textarea></div>
+            <div class="abar"><button class="btn btn-g" onclick="runDocs()">書類を生成する</button></div>
+          </div>
+          <div id="dc-card" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>生成された書類</div><div id="dc-result" class="rbox"></div><div class="abar"><button class="copy-btn" onclick="copyEl('dc-result')">コピー</button></div></div>
+        </div>
+
+        <!-- SCHEDULE -->
+        <div class="ap" id="ap-schedule">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>工事情報の入力</div>
+            <div class="g2">
+              <div class="f"><label>工事名・案件名</label><input type="text" id="sch-name" placeholder="例：田中様邸キッチンリフォーム"></div>
+              <div class="f"><label>開始予定日</label><input type="text" id="sch-start" placeholder="例：2025年6月2日"></div>
+            </div>
+            <div class="f"><label>工事内容・情報</label><textarea id="sch-in" placeholder="例：キッチン全面リフォーム、工期約3週間、担当：鈴木、騒音制限9〜17時"></textarea></div>
+            <div class="tags" id="sch-types">
+              <button class="tag-btn on" data-v="工程表（週次）" onclick="selTag(this,'sch-types')">週次工程表</button>
+              <button class="tag-btn" data-v="施主への工程説明文" onclick="selTag(this,'sch-types')">施主への説明文</button>
+              <button class="tag-btn" data-v="スタッフへの工程指示" onclick="selTag(this,'sch-types')">スタッフへの指示</button>
+            </div>
+            <div class="abar"><button class="btn btn-g" onclick="runSchedule()">工程を生成する</button></div>
+          </div>
+          <div id="sch-card" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>生成された工程</div><div id="sch-result" class="rbox"></div><div class="abar"><button class="copy-btn" onclick="copyEl('sch-result')">コピー</button></div></div>
+        </div>
+
+        <!-- CHECKLIST -->
+        <div class="ap" id="ap-checklist">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--blue)"></div>チェックリストの種類</div>
+            <div class="tags" id="ck-types">
+              <button class="tag-btn on" data-v="着工前確認" onclick="selTag(this,'ck-types')">着工前確認</button>
+              <button class="tag-btn" data-v="工事中安全確認" onclick="selTag(this,'ck-types')">工事中安全確認</button>
+              <button class="tag-btn" data-v="竣工検査" onclick="selTag(this,'ck-types')">竣工検査</button>
+              <button class="tag-btn" data-v="引渡し前確認" onclick="selTag(this,'ck-types')">引渡し前確認</button>
+              <button class="tag-btn" data-v="現場5S点検" onclick="selTag(this,'ck-types')">現場5S点検</button>
+            </div>
+            <div class="f"><label>工事の概要（任意）</label><input type="text" id="ck-in" placeholder="例：木造2階建てリノベーション、電気・水道・大工工事含む"></div>
+            <div class="abar"><button class="btn btn-b" onclick="runChecklist()">チェックリストを生成</button></div>
+          </div>
+          <div id="ck-card" class="card" style="display:none">
+            <div class="card-ttl"><div class="bar" style="background:var(--blue)"></div>チェックリスト</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <button class="btn btn-ghost btn-sm" onclick="ckAll(true)">全チェック</button>
+              <button class="btn btn-ghost btn-sm" onclick="ckAll(false)">全解除</button>
+              <span style="font-size:12px;color:var(--ink3);align-self:center;margin-left:4px" id="ck-prog"></span>
+            </div>
+            <div id="ck-list"></div>
+          </div>
+        </div>
+
+        <!-- INVENTORY -->
+        <div class="ap" id="ap-inventory">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:#0e5c5c"></div>在庫データを入力</div>
+            <div class="f"><label>現在の在庫状況（テキスト形式でOK）</label><textarea id="im-in" placeholder="例：&#10;2×4材(3m) / 8本 / 最低20本 / 東京木材センター&#10;石膏ボード / 3枚 / 最低10枚 / 大建マテリアル&#10;フローリング材 / 0箱 / 最低5箱 / 山田木工"></textarea></div>
+            <div class="f"><label>AIへの質問（省略可）</label><input type="text" id="im-q" placeholder="例：今週発注が必要なものを出して"></div>
+            <div class="abar"><button class="btn" style="background:#0e5c5c;color:#fff" onclick="runInventory()">在庫を分析する</button></div>
+          </div>
+          <div id="im-card" class="card" style="display:none"><div class="card-ttl"><div class="bar" style="background:#0e5c5c"></div>在庫分析結果</div><div id="im-result" class="rbox"></div><div class="abar"><button class="copy-btn" onclick="copyEl('im-result')">コピー</button></div></div>
+        </div>
+
+        <!-- ACCOUNT -->
+        <div class="ap" id="ap-account">
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>現在のプラン</div>
+            <div class="plan-current"><div><div class="pn" id="acc-plan-name">スタンダードプラン</div><div style="font-size:12px;color:var(--g1);margin-top:3px" id="acc-trial-note">14日間無料トライアル中</div></div><div class="pp" id="acc-plan-price">¥39,800/月</div></div>
+            <p style="font-size:13px;color:var(--ink2);margin-bottom:16px">トライアル期間終了後、クレジットカードで自動課金が始まります。</p>
+            <button class="btn btn-g" onclick="showPaymentModal()">支払い情報を登録する（Stripe）</button>
+          </div>
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>プランを変更する</div>
+            <div class="g3">
+              <div style="border:1px solid var(--line);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--ink2);margin-bottom:8px">STARTER</div>
+                <div style="font-size:22px;font-weight:500;margin-bottom:12px">¥19,800</div>
+                <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="showPaymentModal('starter')">このプランに変更</button>
+              </div>
+              <div style="border:2px solid var(--g1);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--g1);margin-bottom:8px">STANDARD ★</div>
+                <div style="font-size:22px;font-weight:500;margin-bottom:12px">¥39,800</div>
+                <button class="btn btn-g btn-sm" style="width:100%;justify-content:center" onclick="showPaymentModal('standard')">このプランに変更</button>
+              </div>
+              <div style="border:1px solid var(--line);border-radius:8px;padding:14px;text-align:center">
+                <div style="font-size:11px;font-family:var(--mono);color:var(--ink2);margin-bottom:8px">ENTERPRISE</div>
+                <div style="font-size:22px;font-weight:500;margin-bottom:12px">¥98,000〜</div>
+                <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="showToast('担当者よりご連絡いたします')">お問い合わせ</button>
+              </div>
+            </div>
+          </div>
+          <div class="card"><div class="card-ttl"><div class="bar" style="background:var(--g1)"></div>アカウント情報</div>
+            <div class="g2">
+              <div class="f"><label>メールアドレス</label><input type="text" id="acc-email" readonly style="background:var(--bg)"></div>
+              <div class="f"><label>会社名</label><input type="text" id="acc-company" readonly style="background:var(--bg)"></div>
+            </div>
+            <div class="abar"><button class="btn btn-danger btn-sm" onclick="if(confirm('アカウントを削除しますか？'))doLogout()">アカウントを削除する</button></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STRIPE PAYMENT MODAL ===== -->
+<div class="modal-overlay" id="payment-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="hidePaymentModal()">×</button>
+    <h2>支払い情報を登録</h2>
+    <p id="modal-plan-note">スタンダードプラン ¥39,800/月（税込）— 14日間の無料トライアル後に課金開始</p>
+    <!-- Stripe Elements がここにマウントされます -->
+    <div id="stripe-element-wrap">
+      <div id="stripe-card-element" style="padding:4px">
+        <!-- Stripe.js が自動的にカード入力フォームを挿入します -->
+        <div style="font-size:12px;color:var(--ink3);text-align:center;padding:8px">
+          ⚠️ Stripeの公開キーを設定すると、ここにカード入力フォームが表示されます
+        </div>
+      </div>
+    </div>
+    <div id="stripe-errors" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none"></div>
+    <button class="btn btn-g" style="width:100%;justify-content:center" id="stripe-submit" onclick="handleStripeSubmit()">
+      カードを登録して開始する
+    </button>
+    <div class="stripe-powered"><div class="stripe-logo">stripe</div><span>Stripe による安全な決済処理</span></div>
+    <div class="stripe-note">🔒 カード情報はStripeのサーバーで暗号化処理されます。当社はカード情報を保持しません。</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========================================
+// 🔧 Stripe公開キーをここに設定してください
+// Stripe Dashboard → Developers → API keys → Publishable key
+// ========================================
+const STRIPE_PK = 'pk_live_nSvTXXn86aMzDB8t5orEA2SQ';
+
+// Stripe Plans（Stripe Dashboardで作成したPrice IDを設定）
+const STRIPE_PRICES = {
+  starter: 'price_YOUR_STARTER_PRICE_ID',
+  standard: 'price_YOUR_STANDARD_PRICE_ID',
+  enterprise: 'price_YOUR_ENTERPRISE_PRICE_ID'
+};
+
+// Cloud Functions URL（デプロイ後に設定）
+const FUNCTIONS_URL = 'https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net';
+
+// ===== STATE =====
+let scImg=null, scImgURL=null, scRecord=null, scType='receipt';
+let dlImg=null, dlImgURL=null, dlRecord=null;
+let scRecords=[], dlRecords=[], ckItems=[];
+let stripe=null, cardElement=null, selectedPlan='standard';
+
+// ===== VIEW =====
+function showView(id){ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+function showToast(m){ toast(m); }
+function copyEl(id){ navigator.clipboard.writeText(document.getElementById(id).innerText||'').then(()=>toast('コピーしました')); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+// ===== AUTH TABS =====
+function switchTab(t){
+  document.querySelectorAll('.auth-tab').forEach((b,i)=>b.classList.toggle('on',i===(t==='signup'?1:0)));
+  document.getElementById('auth-login').style.display=t==='login'?'block':'none';
+  document.getElementById('auth-signup').style.display=t==='signup'?'block':'none';
+}
+function selectPlan(p){ selectedPlan=p; document.querySelectorAll('.plan-opt').forEach(o=>o.classList.toggle('on',o.dataset.p===p)); }
+
+// ===== FIREBASE AUTH =====
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-err');
+  const btn=document.getElementById('login-btn');
+  if(!email||!pass){ err.textContent='メールアドレスとパスワードを入力してください'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='ログイン中...';
+  try{
+    const fb=window._firebase;
+    if(!fb){ throw new Error('Firebase未設定'); }
+    await fb.signInWithEmailAndPassword(fb.auth, email, pass);
+    err.classList.remove('show');
+    toast('ログインしました');
+  }catch(e){
+    err.textContent=e.code==='auth/user-not-found'||e.code==='auth/wrong-password'?'メールアドレスまたはパスワードが正しくありません':e.message;
+    err.classList.add('show');
+  }finally{ btn.disabled=false; btn.textContent='ログインする'; }
+}
+
+async function doSignup(){
+  const company=document.getElementById('su-company').value.trim();
+  const name=document.getElementById('su-name').value.trim();
+  const email=document.getElementById('su-email').value.trim();
+  const pass=document.getElementById('su-pass').value;
+  const err=document.getElementById('signup-err');
+  const ok=document.getElementById('signup-ok');
+  const btn=document.getElementById('signup-btn');
+  if(!company||!name||!email||!pass){ err.textContent='すべての項目を入力してください'; err.classList.add('show'); return; }
+  if(pass.length<8){ err.textContent='パスワードは8文字以上で設定してください'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='登録中...';
+  try{
+    const fb=window._firebase;
+    if(!fb){ throw new Error('Firebase未設定'); }
+    const cred=await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
+    // Firestoreにユーザー情報を保存
+    await fb.setDoc(fb.doc(fb.db,'users',cred.user.uid),{
+      email, company, name, plan: selectedPlan, status:'trial',
+      trialEndsAt: new Date(Date.now()+14*24*60*60*1000).toISOString(),
+      createdAt: fb.serverTimestamp()
+    });
+    err.classList.remove('show');
+    ok.textContent='登録完了！14日間の無料トライアルが始まりました。';
+    ok.classList.add('show');
+    toast('アカウントを作成しました！');
+  }catch(e){
+    err.textContent=e.code==='auth/email-already-in-use'?'このメールアドレスはすでに登録されています':e.message;
+    err.classList.add('show');
+  }finally{ btn.disabled=false; btn.textContent='無料トライアルを開始する'; }
+}
+
+async function doLogout(){
+  const fb=window._firebase;
+  if(fb){ await fb.signOut(fb.auth); }
+  window._currentUser=null;
+  showView('v-landing');
+  toast('ログアウトしました');
+}
+
+function updateAppUI(){
+  const u=window._currentUser;
+  if(!u)return;
+  document.getElementById('sb-user').textContent=u.email||'';
+  document.getElementById('sb-plan').textContent=(u.plan||'trial').toUpperCase();
+  document.getElementById('acc-email').value=u.email||'';
+  document.getElementById('acc-company').value=u.company||'';
+  const planNames={starter:'スタータープラン',standard:'スタンダードプラン',enterprise:'エンタープライズプラン',trial:'トライアル'};
+  const planPrices={starter:'¥19,800/月',standard:'¥39,800/月',enterprise:'¥98,000/月〜',trial:'無料'};
+  document.getElementById('acc-plan-name').textContent=planNames[u.plan]||'トライアル';
+  document.getElementById('acc-plan-price').textContent=planPrices[u.plan]||'無料';
+  document.getElementById('home-plan-note').innerHTML=`📋 <strong style="color:#fff">${planNames[u.plan]||'トライアル'}</strong>でご利用中です。<span style="color:rgba(255,255,255,.65)">プランの変更・支払い登録はアカウント設定から。</span>`;
+}
+
+// ===== APP NAV =====
+function nav(id,btn,title,sub){
+  document.querySelectorAll('.ap').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('ap-'+id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(title) document.getElementById('app-title').textContent=title;
+  if(sub) document.getElementById('app-sub').textContent=sub;
+}
+
+// ===== AI CALL =====
+async function callAI(system,user,img=null){
+  const content=img?[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:user}]:user;
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system,messages:[{role:'user',content}]})});
+  const d=await res.json(); return d.content.map(b=>b.text||'').join('');
+}
+function parseJSON(raw){ return JSON.parse(raw.replace(/```json|```/g,'').trim()); }
+function setLoading(id,msg){ const el=document.getElementById(id); el.className='rbox loading'; el.innerHTML=`<div class="spin"></div><span>${msg}</span>`; }
+function setResult(id,txt){ const el=document.getElementById(id); el.className='rbox'; el.textContent=txt; }
+function selTag(btn,grp){ document.getElementById(grp).querySelectorAll('.tag-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+
+// ===== FIRESTORE SAVE =====
+async function saveToFirestore(type,data){
+  const fb=window._firebase;
+  const u=window._currentUser;
+  if(!fb||!u){ toast('ログインが必要です'); return; }
+  try{
+    await fb.addDoc(fb.collection(fb.db,'users',u.uid,type+'s'),{data,createdAt:fb.serverTimestamp()});
+    toast('Firestoreに保存しました');
+  }catch(e){ toast('保存エラー: '+e.message); }
+}
+
+// ===== SCAN =====
+function scSelType(t,btn){ scType=t; document.querySelectorAll('#ap-scan .btn').forEach(b=>{if(b.id&&b.id.startsWith('sc-t-')){b.className='btn btn-ghost btn-sm';}}); btn.className='btn btn-a btn-sm'; }
+function scHandle(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ scImgURL=ev.target.result; scImg=ev.target.result.split(',')[1]; document.getElementById('sc-prev').src=scImgURL; document.getElementById('sc-prev').style.display='block'; document.getElementById('sc-typewrap').style.display='block'; }; r.readAsDataURL(f); }
+
+async function scRun(){
+  if(!scImg)return;
+  const tl={receipt:'領収書',delivery:'納品書',invoice:'請求書'}[scType];
+  const schemas={receipt:'{"doc_type":"receipt","date":"","vendor":"","amount":"","tax":"","items":"","category":"材料費/外注費/交通費/燃料費/消耗品費/工事費/接待交際費/その他","memo":""}',delivery:'{"doc_type":"delivery","date":"","vendor":"","delivery_no":"","amount":"","items":"","quantity":"","site":"","memo":""}',invoice:'{"doc_type":"invoice","date":"","due_date":"","vendor":"","invoice_no":"","amount":"","tax":"","items":"","bank":"","memo":""}'};
+  document.getElementById('sc-typewrap').style.display='none';
+  document.getElementById('sc-loading').style.display='block';
+  const steps=['画像を解析中...','文字認識中...','データ整理中...'];
+  let si=0; const iv=setInterval(()=>document.getElementById('sc-lstep').textContent=steps[Math.min(++si,2)],1200);
+  try{
+    const raw=await callAI(`建築会社の経理書類OCR AI。${tl}を読み取りJSONのみ返してください：${schemas[scType]}`,`この${tl}を正確に読み取りJSONで返してください。`,scImg);
+    clearInterval(iv); const d=parseJSON(raw);
+    scRecord={...d,image:scImgURL,saved_at:new Date().toISOString()};
+    document.getElementById('sc-loading').style.display='none';
+    document.getElementById('sc-review').style.display='block';
+    const fields={receipt:[['date','日付'],['vendor','支払先'],['amount','金額（税込）'],['items','品目内容'],['category','勘定科目'],['memo','備考']],delivery:[['date','納品日'],['vendor','納品元'],['amount','金額'],['items','品目'],['site','現場名'],['memo','備考']],invoice:[['date','請求日'],['due_date','支払期限'],['vendor','請求元'],['amount','金額'],['items','請求内容'],['memo','備考']]};
+    document.getElementById('sc-form').innerHTML=fields[scType].map(([k,l])=>`<div class="f"><label>${l}</label><input type="text" id="scf-${k}" value="${esc(d[k]||'')}"></div>`).join('');
+  }catch(e){clearInterval(iv);document.getElementById('sc-loading').style.display='none';document.getElementById('sc-typewrap').style.display='block';alert('読み取りエラー: '+e.message);}
+}
+
+async function scSave(){
+  const fields=['date','vendor','amount','tax','items','category','memo','delivery_no','quantity','site','due_date','invoice_no','bank'];
+  const rec={...scRecord}; fields.forEach(f=>{const el=document.getElementById('scf-'+f);if(el)rec[f]=el.value;});
+  scRecords.unshift(rec);
+  // Firestoreにも保存
+  const fb=window._firebase; const u=window._currentUser;
+  if(fb&&u){ try{ await fb.addDoc(fb.collection(fb.db,'users',u.uid,'documents'),{...rec,imageData:null,createdAt:fb.serverTimestamp()}); }catch(e){} }
+  scReset(); renderScList(); toast('保存しました');
+}
+
+function scReset(){ scImg=null;scImgURL=null;scRecord=null; document.getElementById('sc-prev').style.display='none'; document.getElementById('sc-typewrap').style.display='none'; document.getElementById('sc-review').style.display='none'; document.getElementById('sc-fi').value=''; }
+
+function renderScList(){
+  const el=document.getElementById('sc-list');
+  const tl={receipt:'領収書',delivery:'納品書',invoice:'請求書'};
+  if(!scRecords.length){el.innerHTML='<p style="font-size:13px;color:var(--ink3);text-align:center;padding:20px 0">まだデータがありません</p>';return;}
+  el.innerHTML=scRecords.map((r,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><span class="badge bg-a">${tl[r.doc_type]||'書類'}</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${r.vendor||'—'}</div><div style="font-size:11px;color:var(--ink3)">${r.date||'—'}${r.category?' · '+r.category:''}</div></div><div style="font-size:13px;font-family:var(--mono);white-space:nowrap">${r.amount?'¥'+parseInt(r.amount||0).toLocaleString():''}</div><button style="font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #f0aaaa;background:transparent;color:var(--red);cursor:pointer" onclick="scRecords.splice(${i},1);renderScList()">削除</button></div>`).join('');
+}
+
+function exportCSV(){
+  if(!scRecords.length){toast('データがありません');return;}
+  const h=['種別','日付','取引先','金額','品目','勘定科目','備考','登録日'];
+  const tl={receipt:'領収書',delivery:'納品書',invoice:'請求書'};
+  const rows=scRecords.map(r=>[tl[r.doc_type]||'',r.date||'',r.vendor||'',r.amount||'',(r.items||'').replace(/\n/g,' '),r.category||'',r.memo||'',new Date(r.saved_at).toLocaleDateString('ja-JP')]);
+  const csv='\uFEFF'+[h,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='documents_'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); toast('CSVを書き出しました');
+}
+
+// ===== DAILY =====
+function dlHandle(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{dlImgURL=ev.target.result;dlImg=ev.target.result.split(',')[1];document.getElementById('dl-prev').src=dlImgURL;document.getElementById('dl-prev').style.display='block';document.getElementById('dl-btn').style.display='block';}; r.readAsDataURL(f); }
+
+async function dlRun(){
+  if(!dlImg)return;
+  document.getElementById('dl-btn').style.display='none'; document.getElementById('dl-loading').style.display='block';
+  try{
+    const raw=await callAI(`建築現場の作業日報OCR AI。日報を読み取り次のJSONのみ返してください：{"date":"","site":"","worker":"","work_content":"","progress":"","issues":"","next_plan":"","weather":"","start_time":"","end_time":""}`,`この作業日報を正確に読み取ってJSONで返してください。`,dlImg);
+    const d=parseJSON(raw); dlRecord={...d,saved_at:new Date().toISOString()};
+    document.getElementById('dl-loading').style.display='none';
+    document.getElementById('dl-review').style.display='block';
+    document.getElementById('dl-form').innerHTML=[['date','日付'],['site','現場名'],['worker','作業者'],['weather','天気'],['start_time','開始時刻'],['end_time','終了時刻']].map(([k,l])=>`<div class="f"><label>${l}</label><input type="text" id="dlf-${k}" value="${esc(d[k]||'')}"></div>`).join('')+[['work_content','作業内容'],['progress','進捗'],['issues','特記事項'],['next_plan','明日の予定']].map(([k,l])=>`<div class="f"><label>${l}</label><textarea id="dlf-${k}" style="min-height:60px">${esc(d[k]||'')}</textarea></div>`).join('');
+  }catch(e){document.getElementById('dl-loading').style.display='none';document.getElementById('dl-btn').style.display='block';alert('エラー: '+e.message);}
+}
+
+async function dlSave(){
+  const fields=['date','site','worker','work_content','progress','issues','next_plan','weather','start_time','end_time'];
+  const rec={...dlRecord}; fields.forEach(f=>{const el=document.getElementById('dlf-'+f);if(el)rec[f]=el.value;});
+  dlRecords.unshift(rec);
+  const fb=window._firebase; const u=window._currentUser;
+  if(fb&&u){ try{ await fb.addDoc(fb.collection(fb.db,'users',u.uid,'dailyReports'),{...rec,createdAt:fb.serverTimestamp()}); }catch(e){} }
+  dlReset();
+  const el=document.getElementById('dl-list');
+  el.innerHTML=dlRecords.map((r,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><span class="badge bg-a">日報</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${r.site||'現場不明'} — ${r.worker||'—'}</div><div style="font-size:11px;color:var(--ink3)">${r.date||''} ${r.weather||''}</div></div><button style="font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #f0aaaa;background:transparent;color:var(--red);cursor:pointer" onclick="dlRecords.splice(${i},1);this.parentElement.remove()">削除</button></div>`).join('');
+  toast('日報を保存しました');
+}
+function dlReset(){ dlImg=null;dlImgURL=null;dlRecord=null; document.getElementById('dl-prev').style.display='none'; document.getElementById('dl-btn').style.display='none'; document.getElementById('dl-review').style.display='none'; document.getElementById('dl-fi').value=''; }
+function exportDlCSV(){
+  if(!dlRecords.length){toast('データがありません');return;}
+  const h=['日付','現場名','作業者','天気','開始','終了','作業内容','進捗','特記事項','明日の予定'];
+  const rows=dlRecords.map(r=>[r.date||'',r.site||'',r.worker||'',r.weather||'',r.start_time||'',r.end_time||'',(r.work_content||'').replace(/\n/g,' '),r.progress||'',(r.issues||'').replace(/\n/g,' '),r.next_plan||'']);
+  const csv='\uFEFF'+[h,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='daily_'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); toast('CSVを書き出しました');
+}
+
+// ===== MINUTES =====
+async function runMinutes(){
+  const input=document.getElementById('mn-in').value.trim(); if(!input){alert('内容を入力してください');return;}
+  const card=document.getElementById('mn-card'); card.style.display='block';
+  setLoading('mn-result','AIが議事録を整理中...');
+  try{ const t=await callAI(`建築会社の議事録作成AI。形式：\n【日時・場所】\n【参加者】\n【決定事項】\n・\n【未決事項】\n・\n【TODO】No.|内容|担当者|期限\n【次回打ち合わせ】\n情報がない項目は「未記載」。`,input); setResult('mn-result',t); }
+  catch(e){ setResult('mn-result','エラー: '+e.message); }
+}
+
+// ===== ESTIMATE =====
+async function runEstimate(){
+  const work=document.getElementById('es-work').value.trim(); if(!work){alert('施工内容を入力してください');return;}
+  const card=document.getElementById('es-card'); card.style.display='block';
+  document.getElementById('es-result').innerHTML='<div class="rbox loading"><div class="spin"></div><span>AIが見積もりを計算中...</span></div>';
+  const type=document.getElementById('es-type').value,age=document.getElementById('es-age').value,area=document.getElementById('es-area').value,budget=document.getElementById('es-budget').value;
+  try{
+    const raw=await callAI(`リフォーム見積もりAI。JSONのみ：{"totalMin":数値,"totalMax":数値,"workDays":"","difficulty":"低/中/高","breakdown":[{"item":"","spec":"","min":数値,"max":数値}],"proposal":"提案文300字"}`,`物件：${type} 築${age} ${area}㎡ 予算${budget}\n工事内容：${work}`);
+    const d=parseJSON(raw); const fmt=n=>n.toLocaleString('ja-JP');
+    document.getElementById('es-result').innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px"><div class="kpi"><div class="kn" style="font-size:15px">${fmt(d.totalMin)}〜${fmt(d.totalMax)}万</div><div class="kl">概算金額（税込）</div></div><div class="kpi"><div class="kn" style="font-size:15px">${d.workDays}</div><div class="kl">工期目安</div></div><div class="kpi"><div class="kn" style="font-size:15px">${d.difficulty}</div><div class="kl">難易度</div></div></div><div style="overflow-x:auto;margin-bottom:14px"><table class="tbl"><thead><tr><th>工事項目</th><th>仕様</th><th style="text-align:right">概算（万円）</th></tr></thead><tbody>${d.breakdown.map(r=>`<tr><td style="font-weight:500">${r.item}</td><td style="color:var(--ink3)">${r.spec}</td><td style="text-align:right;font-family:var(--mono)">${fmt(r.min)}〜${fmt(r.max)}</td></tr>`).join('')}</tbody></table></div><div class="rbox">${d.proposal}</div>`;
+  }catch(e){ document.getElementById('es-result').innerHTML=`<div class="rbox">エラー: ${e.message}</div>`; }
+}
+
+// ===== DOCS =====
+async function runDocs(){
+  const input=document.getElementById('dc-in').value.trim(); if(!input){alert('内容を入力してください');return;}
+  const card=document.getElementById('dc-card'); card.style.display='block';
+  setLoading('dc-result','AIが書類を作成中...');
+  const dt=document.querySelector('#doc-types .tag-btn.on').dataset.v;
+  try{ const t=await callAI(`建築会社の書類作成AI。「${dt}」を作成。プロフェッショナルで実用的な文体。不明箇所は【　】で空欄。`,`書類：${dt}\n情報：${input}`); setResult('dc-result',t); }
+  catch(e){ setResult('dc-result','エラー: '+e.message); }
+}
+
+// ===== SCHEDULE =====
+async function runSchedule(){
+  const input=document.getElementById('sch-in').value.trim(); if(!input){alert('工事内容を入力してください');return;}
+  const card=document.getElementById('sch-card'); card.style.display='block';
+  setLoading('sch-result','AIが工程を作成中...');
+  const name=document.getElementById('sch-name').value,start=document.getElementById('sch-start').value;
+  const st=document.querySelector('#sch-types .tag-btn.on').dataset.v;
+  try{ const t=await callAI(`建築会社の工程管理AI。「${st}」を作成。実務的で現場担当者がすぐ使える内容。`,`案件名：${name||'未記載'}\n開始予定：${start||'未記載'}\n工事情報：${input}`); setResult('sch-result',t); }
+  catch(e){ setResult('sch-result','エラー: '+e.message); }
+}
+
+// ===== CHECKLIST =====
+async function runChecklist(){
+  const card=document.getElementById('ck-card'); card.style.display='block';
+  document.getElementById('ck-list').innerHTML='<div class="rbox loading"><div class="spin"></div><span>チェックリストを生成中...</span></div>';
+  const type=document.querySelector('#ck-types .tag-btn.on').dataset.v;
+  const input=document.getElementById('ck-in').value;
+  try{
+    const raw=await callAI(`建築現場チェックリスト作成AI。JSONのみ：[{"item":"確認項目","priority":"高/中/低","category":"カテゴリ"}]。実務的に15〜20項目。`,`種類：${type}\n概要：${input||'リフォーム工事一般'}`);
+    ckItems=parseJSON(raw); renderCk();
+  }catch(e){ document.getElementById('ck-list').innerHTML=`<div class="rbox">エラー: ${e.message}</div>`; }
+}
+function renderCk(){
+  const total=ckItems.length; const done=document.querySelectorAll('[id^=ck-cb-]:checked').length||0;
+  document.getElementById('ck-prog').textContent=`${done}/${total}件完了`;
+  document.getElementById('ck-list').innerHTML=ckItems.map((item,i)=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)"><input type="checkbox" id="ck-cb-${i}" onchange="ckUpdate()" style="width:17px;height:17px;accent-color:var(--g1);margin-top:2px;flex-shrink:0"><div style="flex:1;font-size:13px">${item.item}<div style="font-size:11px;color:var(--ink3);margin-top:2px">${item.category||''}</div></div><span class="badge ${item.priority==='高'?'bg-r':item.priority==='中'?'bg-a':'bg-b'}">${item.priority}</span></div>`).join('');
+}
+function ckUpdate(){ const total=ckItems.length; const done=document.querySelectorAll('[id^=ck-cb-]:checked').length; document.getElementById('ck-prog').textContent=`${done}/${total}件完了`; }
+function ckAll(v){ document.querySelectorAll('[id^=ck-cb-]').forEach(c=>c.checked=v); ckUpdate(); }
+
+// ===== INVENTORY =====
+async function runInventory(){
+  const input=document.getElementById('im-in').value.trim(); if(!input){alert('在庫データを入力してください');return;}
+  const card=document.getElementById('im-card'); card.style.display='block';
+  setLoading('im-result','AIが在庫を分析中...');
+  const q=document.getElementById('im-q').value||'不足している資材と今週発注が必要なものを一覧にしてください';
+  try{ const t=await callAI(`建築会社の資材在庫管理AI。在庫を分析して不足資材・発注リストを整理。ステータス（OK/要注意/要発注）を明示して日本語で出力。`,`在庫：${input}\n質問：${q}`); setResult('im-result',t); }
+  catch(e){ setResult('im-result','エラー: '+e.message); }
+}
+
+// ===== STRIPE PAYMENT =====
+function showPaymentModal(plan){
+  if(plan) selectedPlan=plan;
+  const prices={starter:'¥19,800/月',standard:'¥39,800/月',enterprise:'¥98,000/月〜'};
+  const names={starter:'スタータープラン',standard:'スタンダードプラン',enterprise:'エンタープライズプラン'};
+  document.getElementById('modal-plan-note').textContent=`${names[selectedPlan]||'スタンダードプラン'} ${prices[selectedPlan]||'¥39,800/月'}（税込）— 14日間の無料トライアル後に課金開始`;
+  document.getElementById('payment-modal').classList.add('show');
+  // Stripe Elements の初期化
+  if(STRIPE_PK.includes('YOUR')){
+    document.getElementById('stripe-card-element').innerHTML='<div style="font-size:12px;color:var(--amber);text-align:center;padding:10px">⚠️ Stripeの公開キーを設定してください（STRIPE_PK変数）</div>';
+    return;
+  }
+  if(!stripe){ stripe=Stripe(STRIPE_PK); }
+  const elements=stripe.elements();
+  cardElement=elements.create('card',{style:{base:{fontFamily:'Noto Sans JP, sans-serif',fontSize:'14px',color:'#0f0f0d'}}});
+  cardElement.mount('#stripe-card-element');
+  cardElement.on('change',e=>{ const err=document.getElementById('stripe-errors'); err.textContent=e.error?e.error.message:''; err.style.display=e.error?'block':'none'; });
+}
+
+function hidePaymentModal(){ document.getElementById('payment-modal').classList.remove('show'); }
+
+async function handleStripeSubmit(){
+  if(STRIPE_PK.includes('YOUR')){ toast('Stripeの設定が必要です（セットアップ手順書を確認してください）'); hidePaymentModal(); return; }
+  const btn=document.getElementById('stripe-submit');
+  btn.disabled=true; btn.textContent='処理中...';
+  try{
+    const {paymentMethod,error}=await stripe.createPaymentMethod({type:'card',card:cardElement});
+    if(error){ document.getElementById('stripe-errors').textContent=error.message; document.getElementById('stripe-errors').style.display='block'; btn.disabled=false; btn.textContent='カードを登録して開始する'; return; }
+    // Cloud Functions経由でサブスクリプション作成
+    const res=await fetch(`${FUNCTIONS_URL}/createSubscription`,{
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(await window._firebase.auth.currentUser.getIdToken())},
+      body:JSON.stringify({paymentMethodId:paymentMethod.id,priceId:STRIPE_PRICES[selectedPlan],plan:selectedPlan})
+    });
+    const data=await res.json();
+    if(data.error){ throw new Error(data.error); }
+    toast('支払い情報を登録しました！サブスクリプションが有効になりました。');
+    hidePaymentModal();
+    // ユーザーのプラン情報を更新
+    if(window._firebase&&window._currentUser){ await window._firebase.setDoc(window._firebase.doc(window._firebase.db,'users',window._currentUser.uid),{plan:selectedPlan,status:'active',stripeSubscriptionId:data.subscriptionId},{merge:true}); }
+  }catch(e){ document.getElementById('stripe-errors').textContent=e.message; document.getElementById('stripe-errors').style.display='block'; }
+  finally{ btn.disabled=false; btn.textContent='カードを登録して開始する'; }
+}
+
+// Close modal on overlay click
+document.getElementById('payment-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget)hidePaymentModal(); });
+</script>
+
+<!-- Stripe.js (公開キー設定後に有効化) -->
+<script src="https://js.stripe.com/v3/"></script>
+
+</body>
+</html>
