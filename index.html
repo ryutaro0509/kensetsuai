@@ -281,106 +281,66 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink)
 <!-- ===== LANDING ===== -->
 <div class="view active" id="v-landing">
   <nav class="lp-nav">
-    <div class="lp-logo">KensetsuAI <span>建築会社向けAI事務</span></div>
+    <div class="lp-logo">人生設計診断 <span>無料LINE診断</span></div>
     <div class="lp-nav-btns">
       <button class="btn-nav-ghost" onclick="showView('v-auth')">ログイン</button>
-      <button class="btn-nav-cta" onclick="showView('v-auth');switchTab('signup')">14日間無料で試す</button>
+      <button class="btn-nav-cta" onclick="showView('v-auth');switchTab('signup')">無料診断を受ける</button>
     </div>
   </nav>
 
   <div class="hero">
     <div>
-      <div class="hero-tag">🏗 建築・リフォーム・不動産業向け</div>
-      <h1>事務作業を<br><em>AIが</em>自動化する</h1>
-      <p class="hero-sub">手書き書類の写真を撮るだけ。議事録・見積もり・日報・在庫管理——建築会社の日常業務をAIがまるごと効率化します。</p>
+      <div class="hero-tag">⚠ 努力の方向を見直すだけで人生は変わる</div>
+      <h1>その努力、間違ってます。<br>あなたの人生は<em>“設計ミス”</em>です</h1>
+      <p class="hero-sub">✔ 頑張ってるのに結果が出ない<br>✔ 自分に合う仕事が分からない<br>✔ 何をやっても続かない<br><br>👉それ、あなたのせいじゃありません</p>
       <div class="hero-ctas">
-        <button class="btn-hero" onclick="showView('v-auth');switchTab('signup')">14日間無料で試す →</button>
-        <button class="btn-hero btn-hero-g" onclick="showView('v-auth')">ログイン</button>
+        <button class="btn-hero" onclick="showView('v-auth');switchTab('signup')">【無料】あなたの人生の設計図を診断する👇</button>
       </div>
-      <p class="hero-note">クレジットカード不要・いつでも解約可能</p>
+      <p class="hero-note">期間限定：LINE登録で無料診断を受け取れます</p>
     </div>
   </div>
 
-  <div class="stats-bar">
-    <div style="text-align:center"><div class="stat-n">78<span style="font-size:20px;color:rgba(255,255,255,.4)">%</span></div><div class="stat-l">事務工数削減</div></div>
-    <div style="text-align:center"><div class="stat-n">10<span style="font-size:20px;color:rgba(255,255,255,.4)">機能</span></div><div class="stat-l">1ツールに統合</div></div>
-    <div style="text-align:center"><div class="stat-n">3<span style="font-size:20px;color:rgba(255,255,255,.4)">分</span></div><div class="stat-l">書類1件の処理時間</div></div>
-    <div style="text-align:center"><div class="stat-n">50<span style="font-size:20px;color:rgba(255,255,255,.4)">万社</span></div><div class="stat-l">国内潜在顧客数</div></div>
-  </div>
-
   <section class="section" id="features">
-    <span class="sec-tag">FEATURES</span>
-    <h2 class="sec-title">建築会社の事務業務をすべてカバー</h2>
-    <p class="sec-sub">スマホで撮って、AIに任せて、人間は確認するだけ。10の機能が1つに。</p>
+    <span class="sec-tag">EMPATHY</span>
+    <h2 class="sec-title">こんな悩みありませんか？</h2>
+    <p class="sec-sub">・副業を始めたいけど何をすればいいか分からない<br>・自分の強みが分からない<br>・人間関係に疲れている<br>・頑張ってるのに報われない<br><br>👉もし1つでも当てはまるなら“原因”はここにあります。</p>
     <div class="feat-grid">
-      <div class="feat-card"><div class="feat-icon" style="background:#fdf2e0"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#b06010" stroke-width="1.5"><path d="M4 3h12v14l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5V3z"/><path d="M7 7h6M7 10h4"/></svg></div><h3>書類スキャン（OCR）</h3><p>領収書・納品書・請求書・日報を写真で撮るだけで自動データ化</p></div>
-      <div class="feat-card"><div class="feat-icon" style="background:#e6f2ec"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1a5c3a" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h6M7 11h4"/></svg></div><h3>議事録AI</h3><p>打ち合わせメモを貼り付けるだけで決定事項・TODO・担当者を自動整理</p></div>
-      <div class="feat-card"><div class="feat-icon" style="background:#e6eef8"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1a3f72" stroke-width="1.5"><path d="M5 3h8l4 4v10H5V3z"/></svg></div><h3>見積もりAI</h3><p>物件情報と施工内容から概算見積もりと提案書を自動生成</p></div>
-      <div class="feat-card"><div class="feat-icon" style="background:#f0ede8"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5f5e5a" stroke-width="1.5"><rect x="3" y="4" width="14" height="13" rx="1.5"/><path d="M7 3v2M13 3v2M3 9h14"/></svg></div><h3>工程・スケジュール</h3><p>工事情報から週次工程表・施主への説明文を自動生成</p></div>
-      <div class="feat-card"><div class="feat-icon" style="background:#e2f4f4"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#0e5c5c" stroke-width="1.5"><rect x="2" y="8" width="7" height="9" rx="1"/><rect x="11" y="5" width="7" height="12" rx="1"/></svg></div><h3>在庫管理AI</h3><p>在庫データを入力するだけで不足資材・発注リストを自動生成</p></div>
-      <div class="feat-card"><div class="feat-icon" style="background:#eeebfa"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#4a2d8a" stroke-width="1.5"><path d="M7 5l-4 4 2 2 6-7"/><rect x="12" y="6" width="5" height="2" rx="1"/></svg></div><h3>チェックリスト管理</h3><p>着工前・竣工検査などのチェックリストをAIが自動生成</p></div>
+      <div class="feat-card"><h3>問題提起</h3><p>実はほとんどの人が「自分に合っていない生き方」をしています。だから、努力しても結果が出ない・続かない・苦しくなるのです。</p></div>
+      <div class="feat-card"><h3>本質（差別化）</h3><p>人にはそれぞれ“生まれ持った設計図”があります。向いている働き方・成果が出る行動パターン・人間関係の相性を無視すると、人生はズレ続けます。</p></div>
+      <div class="feat-card"><h3>具体例（超重要）</h3><p>・安定型なのに挑戦ばかりして疲弊<br>・自由型なのにルールに縛られて苦しい<br>・感覚型なのにロジックで頑張っている<br><br>👉これ、全部“設計ミス”です。</p></div>
     </div>
   </section>
 
   <section class="section" id="pricing" style="max-width:100%;padding:80px 40px;background:var(--white)">
     <div style="max-width:1100px;margin:0 auto">
-      <span class="sec-tag">PRICING</span>
-      <h2 class="sec-title">シンプルな料金体系</h2>
-      <p class="sec-sub">すべてのプランに14日間の無料トライアル付き。いつでも解約可能。</p>
+      <span class="sec-tag">SOLUTION</span>
+      <h2 class="sec-title">でも安心してください</h2>
+      <p class="sec-sub">生年月日と名前から、あなたの「人生の設計図」はすべて分かります。</p>
       <div class="price-grid">
-        <div class="price-card">
-          <div class="plan-name">STARTER</div>
-          <div class="plan-price">¥<span>19,800</span></div>
-          <div class="plan-per">/ 月（税込）</div>
+        <div class="price-card hot" style="grid-column:span 3">
+          <div class="plan-name">無料診断で分かること</div>
           <div class="plan-feats">
-            <div class="pf"><div class="pf-chk">✓</div>書類スキャン月50件</div>
-            <div class="pf"><div class="pf-chk">✓</div>議事録・書類生成AI</div>
-            <div class="pf"><div class="pf-chk">✓</div>チェックリスト管理</div>
-            <div class="pf no"><div class="pf-chk">—</div>在庫管理AI</div>
-            <div class="pf no"><div class="pf-chk">—</div>複数ユーザー</div>
+            <div class="pf"><div class="pf-chk">✓</div>自分に合う仕事が分かる</div>
+            <div class="pf"><div class="pf-chk">✓</div>無理しなくても結果が出る行動が分かる</div>
+            <div class="pf"><div class="pf-chk">✓</div>人間関係が楽になるヒントが分かる</div>
+            <div class="pf"><div class="pf-chk">✓</div>自信を持って行動できるようになる</div>
           </div>
-          <button class="btn-plan btn-plan-out" onclick="showView('v-auth');switchTab('signup');selectPlan('starter')">無料で始める</button>
-        </div>
-        <div class="price-card hot">
-          <div class="plan-name">STANDARD</div>
-          <div class="plan-price">¥<span>39,800</span></div>
-          <div class="plan-per">/ 月（税込）</div>
-          <div class="plan-feats">
-            <div class="pf"><div class="pf-chk">✓</div>書類スキャン月300件</div>
-            <div class="pf"><div class="pf-chk">✓</div>全機能使い放題</div>
-            <div class="pf"><div class="pf-chk">✓</div>在庫管理AI</div>
-            <div class="pf"><div class="pf-chk">✓</div>複数ユーザー5名まで</div>
-            <div class="pf"><div class="pf-chk">✓</div>メールサポート</div>
-          </div>
-          <button class="btn-plan btn-plan-g" onclick="showView('v-auth');switchTab('signup');selectPlan('standard')">無料で始める</button>
-        </div>
-        <div class="price-card">
-          <div class="plan-name">ENTERPRISE</div>
-          <div class="plan-price">¥<span>98,000</span><span style="font-size:14px">〜</span></div>
-          <div class="plan-per">/ 月（税込）</div>
-          <div class="plan-feats">
-            <div class="pf"><div class="pf-chk">✓</div>スキャン無制限</div>
-            <div class="pf"><div class="pf-chk">✓</div>全機能＋カスタム開発</div>
-            <div class="pf"><div class="pf-chk">✓</div>ユーザー数無制限</div>
-            <div class="pf"><div class="pf-chk">✓</div>専用サポート担当</div>
-            <div class="pf"><div class="pf-chk">✓</div>既存システム連携</div>
-          </div>
-          <button class="btn-plan btn-plan-out" onclick="showToast('お問い合わせありがとうございます。担当者よりご連絡いたします。')">お問い合わせ</button>
+          <button class="btn-plan btn-plan-g" onclick="showView('v-auth');switchTab('signup')">【期間限定】無料診断はこちら👇</button>
         </div>
       </div>
     </div>
   </section>
 
   <div class="cta-wrap">
-    <h2>まず14日間、無料で試してください</h2>
-    <p>クレジットカード不要。設定5分で使い始められます。</p>
-    <button class="btn-cta-w" onclick="showView('v-auth');switchTab('signup')">無料トライアルを始める →</button>
+    <h2>今のまま進みますか？<br>それとも“本来の自分”で生きますか？</h2>
+    <p>👉LINE登録で、あなたの設計図を今すぐ知る</p>
+    <button class="btn-cta-w" onclick="showView('v-auth');switchTab('signup')">LINE登録で受け取る</button>
   </div>
 
   <footer class="lp-footer">
-    <div class="lp-footer-logo">KensetsuAI</div>
+    <div class="lp-footer-logo">人生設計診断</div>
     <div class="lp-footer-links"><a>利用規約</a><a>プライバシーポリシー</a><a>特定商取引法</a><a>お問い合わせ</a></div>
-    <div class="lp-footer-copy">© 2025 KensetsuAI Inc.</div>
+    <div class="lp-footer-copy">© 2026 Life Blueprint</div>
   </footer>
 </div>
 
